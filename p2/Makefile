@@ -4,9 +4,10 @@ LIBS=-lz
 CC=gcc
 
 all: comp
+	gcc -g -pthread exemplo.c queue.c -o exemploE1
 
 comp: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
 
-clean: 
-	rm -f *.o comp
+clean:
+	rm -f *.o comp exemploE1
