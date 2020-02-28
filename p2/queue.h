@@ -1,6 +1,8 @@
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
 
+
+
 typedef struct _queue *queue;
 
 queue q_create(int size);            // Create a new queue
