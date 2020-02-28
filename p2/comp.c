@@ -50,7 +50,7 @@ void* worker(void* aux) {
     }
     pthread_mutex_unlock(args->m);
 
-    printf("---------------------------------------------------------------------------\n");
+    printf("----------------Thread finalizado\n" );
 
     return NULL;
 }
@@ -121,7 +121,7 @@ void comp(struct options opt) {
         add_chunk(ar, ch);
         free_chunk(ch);
     }
-    printf("--------------------------------------------------------------ff-------------\n");
+    printf("----------------Finalizada compresión\n");
 
     for(int i=0; i<opt.num_threads;i++) pthread_join(threads[i],NULL);
 
@@ -191,6 +191,9 @@ void decomp(struct options opt) {
         write(fd, ch->data, ch->size);
         free_chunk(ch);
     }
+  
+      printf("----------------Finalizada descompresión\n");
+
 
     close_archive_file(ar);
     close(fd);
