@@ -124,6 +124,9 @@ void comp(struct options opt) {
     printf("----------------Finalizada compresión\n");
 
     for(int i=0; i<opt.num_threads;i++) pthread_join(threads[i],NULL);
+  
+    pthread_mutex_destroy(args.m);
+    free(args.m);
 
     close_archive_file(ar);
     close(fd);
@@ -193,7 +196,9 @@ void decomp(struct options opt) {
     }
   
       printf("----------------Finalizada descompresión\n");
-
+  
+    pthread_mutex_destroy(args.m);
+    free(args.m);
 
     close_archive_file(ar);
     close(fd);
