@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <pthread.h>
 #include "compress.h"
 #include "chunk_archive.h"
 #include "queue.h"
@@ -15,20 +16,43 @@
 #define QUEUE_SIZE 20
 
 #define COMPRESS 1
-#define DECOMPRESS 0
+#define DECOMPRESS 0;
+
+
+typedef struct{
+  queue in;
+  queue out;
+  chunk (*process)(chunk);
+  pthread_mutex_t* m;
+  int * iter;
+} args;
 
 
 // take chunks from queue in, run them through process (compress or decompress), send them to queue out
-void worker(queue in, queue out, chunk (*process)(chunk)) {
+void* worker(void* aux) {
+  args* args = aux;
     chunk ch, res;
-    while(q_elements(in)>0) {
-        ch = q_remove(in);
+    int * i = args->iter;
+    pthread_mutex_lock(args->m);
+    while(*i>0) {
+      printf("i=%d\n",*i );
+      (*i)=(*i)-1;
+      pthread_mutex_unlock(args->m);
 
-        res = process(ch);
-        free_chunk(ch);
+      ch = q_remove(args->in);
 
-        q_insert(out, res);
+      res = args->process(ch);
+      free_chunk(ch);
+
+      q_insert(args->out, res);
+
+      pthread_mutex_lock(args->m);
     }
+    pthread_mutex_unlock(args->m);
+
+    printf("----------------Thread finalizado\n" );
+
+    return NULL;
 }
 
 // Compress file taking chunks of opt.size from the input file,
@@ -74,9 +98,21 @@ void comp(struct options opt) {
 
         q_insert(in, ch);
     }
-
     // compression of chunks from in to out
-    worker(in, out, zcompress);
+    int p=chunks;;
+    args args;
+    pthread_t threads[opt.num_threads];
+    args.m=malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(args.m,NULL);
+    for(int i=0; i<opt.num_threads;i++) {
+    args.iter=&p;
+    args.in=in;
+    args.out=out;
+    args.process=zcompress;
+
+    pthread_create(&threads[i],NULL,worker,(void*)&args);}
+
+
 
     // send chunks to the output archive file
     for(i=0; i<chunks; i++) {
@@ -85,11 +121,17 @@ void comp(struct options opt) {
         add_chunk(ar, ch);
         free_chunk(ch);
     }
+    printf("----------------Finalizada compresión\n");
+
+    for(int i=0; i<opt.num_threads;i++) pthread_join(threads[i],NULL);
+  
+    pthread_mutex_destroy(args.m);
+    free(args.m);
 
     close_archive_file(ar);
     close(fd);
-    q_destroy(in);
-    q_destroy(out);
+     q_destroy(in);
+     q_destroy(out);
 }
 
 
@@ -132,7 +174,18 @@ void decomp(struct options opt) {
     }
 
     // decompress from in to out
-    worker(in, out, zdecompress);
+    int p=chunks;;
+    args args;
+    pthread_t threads[opt.num_threads];
+    args.m=malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(args.m,NULL);
+    for(int i=0; i<opt.num_threads;i++) {
+    args.iter=&p;
+    args.in=in;
+    args.out=out;
+    args.process=zdecompress;
+
+    pthread_create(&threads[i],NULL,worker,(void*)&args);}
 
     // write chunks from output to decompressed file
     for(i=0; i<chunks(ar); i++) {
@@ -141,6 +194,11 @@ void decomp(struct options opt) {
         write(fd, ch->data, ch->size);
         free_chunk(ch);
     }
+  
+      printf("----------------Finalizada descompresión\n");
+  
+    pthread_mutex_destroy(args.m);
+    free(args.m);
 
     close_archive_file(ar);
     close(fd);
